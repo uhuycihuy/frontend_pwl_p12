@@ -1,12 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import '../css/ProductDisplay.css';
 
 const ProductDisplay = () => {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [produkDipilih, setProdukDipilih] = useState(null);
   const [pembeli, setPembeli] = useState('');
   const [jumlah, setJumlah] = useState(1);
+  const workerRef = useRef(null);
+
+  useEffect(() => {
+    // Initialize the web worker
+    workerRef.current = new Worker('/workers/workerProduct.js');
+    
+    workerRef.current.onmessage = (event) => {
+      if (event.data.type === "HASIL_PRODUK") {
+        setFilteredProducts(event.data.payload.filteredProducts);
+      }
+    };
+
+    getProducts();
+
+    // Cleanup the worker when component unmounts
+    return () => {
+      workerRef.current.terminate();
+    };
+  }, []);
 
   const getProducts = async () => {
     try {
@@ -18,75 +43,166 @@ const ProductDisplay = () => {
     }
   };
 
-  const handleBayar = async () => {
-    console.log("Produk yang akan dibayar:", produkDipilih);
+  const processProducts = useCallback(() => {
+    workerRef.current.postMessage({
+      type: "PROSES_PRODUK",
+      payload: {
+        products,
+        sortBy,
+        sortOrder,
+        minPrice: minPrice === '' ? 0 : Number(minPrice),
+        maxPrice: maxPrice === '' ? Infinity : Number(maxPrice),
+        searchKeyword
+      }
+    });
+  }, [products, sortBy, sortOrder, minPrice, maxPrice, searchKeyword]);
 
-    if (!produkDipilih?.uuid || !pembeli || !jumlah) {
-        console.log("Data yang kurang:", {
-            productId: produkDipilih?.uuid,
-            nama_pembeli: pembeli,
-            jumlah: jumlah
-        });
-        return alert("Lengkapi semua data!");
+  useEffect(() => {
+    if (products.length > 0) {
+      processProducts();
     }
+  }, [products.length, processProducts]);
 
-    if (jumlah < 1) {
-        return alert("Jumlah harus minimal 1");
-    }
-
-    try {
-        const paymentData = {
-            nama_pembeli: pembeli,
-            productId: produkDipilih.uuid,
-            jumlah: Number(jumlah)
-        };
-
-        console.log("Data yang dikirim ke backend:", paymentData);
-
-        const response = await axios.post('http://localhost:5000/payments', paymentData, {
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-
-        alert(`Pembayaran berhasil!\n
-               ID Transaksi: ${response.data.payment.uuid}\n
-               Produk: ${response.data.payment.nama_produk}\n
-               Total: Rp${response.data.payment.total_harga.toLocaleString()}`);
-
-        // Reset form
-        setPembeli('');
-        setJumlah(1);
-        setProdukDipilih(null);
-
-    } catch (error) {
-        console.error("Detail error:", error.response?.data || error.message);
-        
-        let errorMessage = "Pembayaran gagal";
-        if (error.response?.data?.msg) {
-            errorMessage = error.response.data.msg;
-        }
-        if (error.response?.data?.errors) {
-            errorMessage += ": " + error.response.data.errors.join(", ");
-        }
-        
-        alert(errorMessage);
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
     }
   };
 
-  useEffect(() => {
-    getProducts();
-  }, []);
+  const handleMinPriceChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || /^[0-9\b]+$/.test(value)) {
+      setMinPrice(value);
+    }
+  };
+
+  const handleMaxPriceChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || /^[0-9\b]+$/.test(value)) {
+      setMaxPrice(value);
+    }
+  };
+
+  const handleBayar = async () => {
+    if (!produkDipilih?.uuid || !pembeli || !jumlah) {
+      return alert("Lengkapi semua data!");
+    }
+
+    if (jumlah < 1) {
+      return alert("Jumlah harus minimal 1");
+    }
+
+    try {
+      const paymentData = {
+        nama_pembeli: pembeli,
+        productId: produkDipilih.uuid,
+        jumlah: Number(jumlah)
+      };
+
+      const response = await axios.post('http://localhost:5000/payments', paymentData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      alert(`Pembayaran berhasil!\n
+             ID Transaksi: ${response.data.payment.uuid}\n
+             Produk: ${response.data.payment.nama_produk}\n
+             Total: Rp${response.data.payment.total_harga.toLocaleString()}`);
+
+      // Reset form
+      setPembeli('');
+      setJumlah(1);
+      setProdukDipilih(null);
+
+    } catch (error) {
+      let errorMessage = "Pembayaran gagal";
+      if (error.response?.data?.msg) {
+        errorMessage = error.response.data.msg;
+      }
+      if (error.response?.data?.errors) {
+        errorMessage += ": " + error.response.data.errors.join(", ");
+      }
+      alert(errorMessage);
+    }
+  };
 
   return (
     <div className="container mt-5">
+      {/* Filter Controls */}
+      <div className="box mb-4">
+        <div className="field is-horizontal">
+          <div className="field-body">
+            <div className="field">
+              <label className="label">Cari Produk</label>
+              <div className="control">
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Cari produk..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="field">
+              <label className="label">Harga Minimal</label>
+              <div className="control">
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Harga minimal"
+                  value={minPrice}
+                  onChange={handleMinPriceChange}
+                  pattern="[0-9]*" 
+                />
+              </div>
+            </div>
+            
+            <div className="field">
+              <label className="label">Harga Maksimal</label>
+              <div className="control">
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Harga maksimal"
+                  value={maxPrice}
+                  onChange={handleMaxPriceChange}
+                  pattern="[0-9]*"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sorting Controls */}
+      <div className="buttons mb-4">
+        <button 
+          className={`button ${sortBy === 'name' ? 'is-primary' : ''}`}
+          onClick={() => handleSort('name')}
+        >
+          Urutkan Nama {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+        <button 
+          className={`button ${sortBy === 'price' ? 'is-primary' : ''}`}
+          onClick={() => handleSort('price')}
+        >
+          Urutkan Harga {sortBy === 'price' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+      </div>
+
       {/* Tampilan Produk */}
       <div className={produkDipilih ? 'blur-background' : ''}>
         <h1 className="title">Daftar Produk</h1>
         <h2 className="subtitle">Pilih produk yang ingin dibeli</h2>
 
         <div className="columns is-multiline">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <div className="column is-one-quarter" key={product.uuid}>
               <div className="card">
                 <div className="card-image">
@@ -115,7 +231,7 @@ const ProductDisplay = () => {
         </div>
       </div>
 
-      {/* Form Pembayaran */}
+      {/* Form Pembayaran (modal) */}
       {produkDipilih && (
         <div className="modal is-active">
           <div className="modal-background" onClick={() => setProdukDipilih(null)}></div>

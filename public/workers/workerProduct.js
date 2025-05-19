@@ -6,14 +6,15 @@ self.onmessage = function (e) {
       products,
       sortBy = "name",
       sortOrder = "asc",
-      minPrice = 0,
-      maxPrice = Infinity,
+      minPrice = Number(payload.minPrice) || 0,
+      maxPrice = payload.maxPrice === Infinity ? Infinity : Number(payload.maxPrice) || Infinity,
       searchKeyword = ""
     } = payload;
 
     // Filter berdasarkan harga
-    let result = products.filter(product => {
-      return product.price >= minPrice && product.price <= maxPrice;
+    let result = payload.products.filter(product => {
+      const productPrice = Number(product.price);
+      return productPrice >= minPrice && productPrice <= maxPrice;
     });
 
     // Filter berdasarkan keyword (search)
