@@ -1,0 +1,13 @@
+/* css/Pagination.css */
+
+/* Ubah warna teks jadi hitam */
+.pagination-link,
+.pagination-previous,
+.pagination-next {
+  color: black !important;
+}
+
+/* Jika ada elemen dalam pagination-list yang diwarisi style lain */
+.pagination-list * {
+  color: black !important;
+}
