@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const FormAddProduct = () => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [file, setFile] = useState(null); // ubah ke null karena file adalah objek
+  const [file, setFile] = useState(null); 
   const [msg, setMsg] = useState('');
   const navigate = useNavigate();
 
@@ -14,14 +14,14 @@ const FormAddProduct = () => {
     const formData = new FormData();
     formData.append('name', name);
     formData.append('price', price);
-    formData.append('file', file); // nama "file" harus sama dengan req.files.file di backend
+    formData.append('file', file); 
 
     try {
       await axios.post('http://localhost:5000/products', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        withCredentials: true, // jika kamu pakai cookie login (optional)
+        withCredentials: true, 
       });
       navigate('/productlists');
     } catch (error) {
@@ -78,7 +78,7 @@ const FormAddProduct = () => {
                         className="file-input"
                         type="file"
                         name="file"
-                        onChange={(e) => setFile(e.target.files[0])} // ambil objek file
+                        onChange={(e) => setFile(e.target.files[0])} 
                         required
                       />
                       <span className="file-cta">

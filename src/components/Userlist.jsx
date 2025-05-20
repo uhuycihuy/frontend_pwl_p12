@@ -1,17 +1,40 @@
-import React, {useEffect, useState} from 'react';
-import {Link}  from "react-router-dom";
+import React, { useEffect, useState, useRef } from 'react';
+import { Link } from "react-router-dom";
 import axios from "axios";
 
 const Userlist = () => {
     const [users, setUsers] = useState([]);
+    const [originalUsers, setOriginalUsers] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const workerRef = useRef(null);
 
     useEffect(() => {
+        // Inisialisasi worker
+        workerRef.current = new Worker('/workers/workerUser.js');
+        
+        workerRef.current.onmessage = (e) => {
+            setUsers(e.data);
+        };
+
         getUsers();
+
+        // Cleanup worker saat komponen unmount
+        return () => {
+            workerRef.current.terminate();
+        };
     }, []);
 
     const getUsers = async () => {
-        const response = await axios.get("http://localhost:5000/users");
-        setUsers(response.data);
+        setIsLoading(true);
+        try {
+            const response = await axios.get("http://localhost:5000/users");
+            setUsers(response.data);
+            setOriginalUsers(response.data); // Simpan data original
+        } catch (error) {
+            console.error("Error fetching users:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const deleteUser = async (userId) => {
@@ -19,48 +42,90 @@ const Userlist = () => {
         getUsers();
     };
 
+    const sortByName = () => {
+        workerRef.current.postMessage({
+            users: originalUsers,
+            action: 'SORT_BY_NAME'
+        });
+    };
+
+    const filterByRole = (role) => {
+        workerRef.current.postMessage({
+            users: originalUsers,
+            action: 'FILTER_BY_ROLE',
+            payload: { role }
+        });
+    };
+
+    const resetFilter = () => {
+        workerRef.current.postMessage({
+            users: originalUsers,
+            action: 'RESET'
+        });
+    };
+
     return (
         <div>
-            <h1 className='title'>Users</h1>
-            <h2 className='subtitle'>List of Users</h2>
-            <Link to="/users/add" className="button is-primary mb-2">
-                Add New
-            </Link>
-            <table className='table is-striped is-fullwidth'>
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((user, index) => (
-                    <tr key={user.uuid}>
-                        <td>{index + 1}</td>
-                        <td>{user.name}</td>
-                        <td>{user.email}</td>
-                        <td>{user.role}</td>
-                        <td>
-                            <Link
-                                to={`/users/edit/${user.uuid}`}
-                                className="button is-small is-info"
-                            >
-                                Edit
-                            </Link>
-                            <button
-                                onClick={() => deleteUser(user.uuid)}
-                                className="button is-small is-danger"
-                            >
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+            <h1 className='title has-text-black'>Users</h1>
+            <h2 className='subtitle has-text-black'>List of Users</h2>
+            
+            <div className="buttons mb-4">
+                <Link to="/users/add" className="button is-primary">
+                    Add New
+                </Link>
+                <button onClick={sortByName} className="button is-info">
+                    Sort by Name
+                </button>
+                <button onClick={() => filterByRole('admin')} className="button is-warning">
+                    Filter Admin
+                </button>
+                <button onClick={() => filterByRole('user')} className="button is-success">
+                    Filter User
+                </button>
+                <button onClick={resetFilter} className="button is-danger">
+                    Reset Filter
+                </button>
+            </div>
+
+            {isLoading ? (
+                <div className="has-text-centered">Loading users...</div>
+            ) : (
+                <table className='table is-striped is-fullwidth'>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map((user, index) => (
+                            <tr key={user.uuid}>
+                                <td>{index + 1}</td>
+                                <td>{user.name}</td>
+                                <td>{user.email}</td>
+                                <td>{user.role}</td>
+                                <td>
+                                    <Link
+                                        to={`/users/edit/${user.uuid}`}
+                                        className="button is-small is-info"
+                                    >
+                                        Edit
+                                    </Link>
+                                    <button
+                                        onClick={() => deleteUser(user.uuid)}
+                                        className="button is-small is-danger ml-2"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 };

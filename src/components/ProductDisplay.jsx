@@ -132,6 +132,9 @@ const ProductDisplay = () => {
 
   return (
     <div className="container mt-5">
+
+      <h1 className="title has-text-black">Daftar Produk</h1>
+        <h2 className="subtitle has-text-black">Pilih produk yang ingin dibeli</h2>
       {/* Filter Controls */}
       <div className="box mb-4">
         <div className="field is-horizontal">
@@ -198,9 +201,6 @@ const ProductDisplay = () => {
 
       {/* Tampilan Produk */}
       <div className={produkDipilih ? 'blur-background' : ''}>
-        <h1 className="title">Daftar Produk</h1>
-        <h2 className="subtitle">Pilih produk yang ingin dibeli</h2>
-
         <div className="columns is-multiline">
           {filteredProducts.map((product) => (
             <div className="column is-one-quarter" key={product.uuid}>

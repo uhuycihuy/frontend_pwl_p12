@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from "react-router-dom";
 import axios from "axios";
 
@@ -32,19 +32,23 @@ const ProductList = () => {
     };
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (products.length > 0) {
-      processProducts();
-    }
-  }, [products, sortBy, sortOrder, minPrice, maxPrice, searchKeyword]);
+  // useEffect(() => {
+  //   if (products.length > 0) {
+  //     processProducts();
+  //   }
+  // }, [products, sortBy, sortOrder, minPrice, maxPrice, searchKeyword]);
 
   const getProducts = async () => {
-    const response = await axios.get("http://localhost:5000/products");
-    setProducts(response.data);
+    try {
+      const response = await axios.get("http://localhost:5000/products");
+      setProducts(response.data);
+    } catch (error) {
+      console.error("Error mengambil produk:", error);
+      alert("Gagal memuat produk");
+    }
   };
 
-  const processProducts = () => {
+  const processProducts = useCallback(() => {
     workerRef.current.postMessage({
       type: "PROSES_PRODUK",
       payload: {
@@ -56,7 +60,13 @@ const ProductList = () => {
         searchKeyword
       }
     });
-  };
+  }, [products, sortBy, sortOrder, minPrice, maxPrice, searchKeyword]);
+
+  useEffect(() => {
+    if (products.length > 0) {
+      processProducts();
+    }
+  }, [products.length, processProducts]);
 
   const deleteProduct = async (productId) => {
     await axios.delete(`http://localhost:5000/products/${productId}`);
@@ -90,8 +100,8 @@ const ProductList = () => {
 
   return (
     <div>
-      <h1 className='title'>Products</h1>
-      <h2 className='subtitle'>List of Products</h2>
+      <h1 className='title has-text-black'>Products</h1>
+      <h2 className='subtitle has-text-black'>List of Products</h2>
       
       {/* Filter and Search Controls */}
       <div className="box mb-4">

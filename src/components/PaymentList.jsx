@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 
 const PaymentList = () => {
   const [payments, setPayments] = useState([]);
+  const [originalPayments, setOriginalPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [totalFiltered, setTotalFiltered] = useState(0);
@@ -17,8 +18,9 @@ const PaymentList = () => {
     workerRef.current = new Worker('/workers/workerPayment.js');
 
     workerRef.current.onmessage = (e) => {
-      setTotalFiltered(e.data.totalPembayaran);
-      setJumlahTransaksi(e.data.jumlahTransaksi);
+      setPayments(e.data.payments || []);
+      setTotalFiltered(e.data.totalPembayaran || 0);
+      setJumlahTransaksi(e.data.jumlahTransaksi || 0);
     };
 
     return () => {
@@ -31,7 +33,14 @@ const PaymentList = () => {
       try {
         const response = await axios.get('http://localhost:5000/payments');
         setPayments(response.data);
+        setOriginalPayments(response.data); // Simpan data original
         setLoading(false);
+        
+        // Hitung total awal
+        workerRef.current.postMessage({
+          payments: response.data,
+          action: 'RESET'
+        });
       } catch (err) {
         setError(err.response?.data?.message || err.message);
         setLoading(false);
@@ -44,14 +53,22 @@ const PaymentList = () => {
 
   // Kirim data ke worker saat filter berubah
   useEffect(() => {
-    if (workerRef.current && payments.length > 0) {
-      workerRef.current.postMessage({
-        payments,
-        filterDateStart,
-        filterDateEnd,
-      });
+    if (workerRef.current && originalPayments.length > 0) {
+      if (filterDateStart || filterDateEnd) {
+        workerRef.current.postMessage({
+          payments: originalPayments,
+          action: 'FILTER_BY_DATE',
+          filterDateStart,
+          filterDateEnd,
+        });
+      } else {
+        workerRef.current.postMessage({
+          payments: originalPayments,
+          action: 'RESET'
+        });
+      }
     }
-  }, [payments, filterDateStart, filterDateEnd]);
+  }, [originalPayments, filterDateStart, filterDateEnd]);
 
   const formatDate = (dateString) => {
     const options = { 
@@ -72,7 +89,6 @@ const PaymentList = () => {
     }).format(amount);
   };
 
-  // Fungsi preset filter
   const handleFilterPreset = (type) => {
     const now = new Date();
     let startDate;
@@ -87,13 +103,19 @@ const PaymentList = () => {
     setFilterDateEnd(now.toISOString().split("T")[0]);
   };
 
+  const resetFilter = () => {
+    setFilterDateStart('');
+    setFilterDateEnd('');
+    // Worker akan menangani reset secara otomatis melalui useEffect
+  };
+
   if (loading) return <div className="has-text-centered">Loading payments...</div>;
   if (error) return <div className="has-text-centered has-text-danger">Error: {error}</div>;
 
   return (
     <div className="container">
-      <h1 className='title'>Payments</h1>
-      <h2 className='subtitle'>List of Payments</h2>
+      <h1 className='title has-text-black'>Payments</h1>
+      <h2 className='subtitle has-text-black'>List of Payments</h2>
 
       {/* FILTER */}
       <div className="box mb-4">
@@ -103,6 +125,9 @@ const PaymentList = () => {
           </button>
           <button className="button is-warning" onClick={() => handleFilterPreset('month')}>
             Filter Bulanan
+          </button>
+          <button className="button is-danger" onClick={resetFilter}>
+            Reset Filter
           </button>
         </div>
         <div className="field is-grouped mt-2">
@@ -139,7 +164,6 @@ const PaymentList = () => {
             <tr>
               <th>No</th>
               <th>Customer Name</th>
-              <th>Cashier</th>
               <th>Product</th>
               <th>Quantity</th>
               <th>Unit Price</th>
@@ -153,13 +177,9 @@ const PaymentList = () => {
                 <tr key={payment.uuid}>
                   <td>{index + 1}</td>
                   <td>{payment.nama_pembeli}</td>
-                  <td>
-                    <div>{payment.user.name}</div>
-                    <div className="is-size-7 has-text-grey">{payment.user.email}</div>
-                  </td>
                   <td>{payment.nama_produk}</td>
                   <td>{payment.jumlah}</td>
-                  <td>{formatCurrency(payment.product.price)}</td>
+                  <td>{formatCurrency(payment.product?.price || 0)}</td>
                   <td>{formatCurrency(payment.total_harga)}</td>
                   <td>{formatDate(payment.tanggal)}</td>
                 </tr>
