@@ -26,6 +26,9 @@ const Sidebar = () => {
           <li>
             <NavLink to={"/productdisplays"}><IoCart/>Product Display</NavLink>
           </li>
+          <li>
+            <NavLink to={"/paymentlistusers"}><IoFileTrayStacked/>Payment List User</NavLink>
+          </li>
         </ul>
 
         {user && user.role === "admin" && (

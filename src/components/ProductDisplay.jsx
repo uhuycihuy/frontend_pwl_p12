@@ -16,7 +16,6 @@ const ProductDisplay = () => {
   const workerRef = useRef(null);
 
   useEffect(() => {
-    // Initialize the web worker
     workerRef.current = new Worker('/workers/workerProduct.js');
     
     workerRef.current.onmessage = (event) => {
@@ -26,12 +25,10 @@ const ProductDisplay = () => {
     };
 
     getProducts();
-
-    // Cleanup the worker when component unmounts
-    return () => {
-      workerRef.current.terminate();
-    };
-  }, []);
+      return () => {
+        workerRef.current.terminate();
+      };
+    }, []);
 
   const getProducts = async () => {
     try {
@@ -113,7 +110,6 @@ const ProductDisplay = () => {
              Produk: ${response.data.payment.nama_produk}\n
              Total: Rp${response.data.payment.total_harga.toLocaleString()}`);
 
-      // Reset form
       setPembeli('');
       setJumlah(1);
       setProdukDipilih(null);
@@ -134,8 +130,7 @@ const ProductDisplay = () => {
     <div className="container mt-5">
 
       <h1 className="title has-text-black">Daftar Produk</h1>
-        <h2 className="subtitle has-text-black">Pilih produk yang ingin dibeli</h2>
-      {/* Filter Controls */}
+      <h2 className="subtitle has-text-black">Pilih produk yang ingin dibeli</h2>
       <div className="box mb-4">
         <div className="field is-horizontal">
           <div className="field-body">
@@ -183,7 +178,6 @@ const ProductDisplay = () => {
         </div>
       </div>
 
-      {/* Sorting Controls */}
       <div className="buttons mb-4">
         <button 
           className={`button ${sortBy === 'name' ? 'is-primary' : ''}`}
@@ -199,7 +193,6 @@ const ProductDisplay = () => {
         </button>
       </div>
 
-      {/* Tampilan Produk */}
       <div className={produkDipilih ? 'blur-background' : ''}>
         <div className="columns is-multiline">
           {filteredProducts.map((product) => (
@@ -231,7 +224,6 @@ const ProductDisplay = () => {
         </div>
       </div>
 
-      {/* Form Pembayaran (modal) */}
       {produkDipilih && (
         <div className="modal is-active">
           <div className="modal-background" onClick={() => setProdukDipilih(null)}></div>

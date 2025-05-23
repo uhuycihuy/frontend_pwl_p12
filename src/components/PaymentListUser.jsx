@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from "axios";
 import { toast } from 'react-toastify';
+import { useSelector } from 'react-redux';
 
-const PaymentList = () => {
+const PaymentListUser = () => {
   const [payments, setPayments] = useState([]);
   const [originalPayments, setOriginalPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,8 +12,9 @@ const PaymentList = () => {
   const [jumlahTransaksi, setJumlahTransaksi] = useState(0);
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');
-
+  
   const workerRef = useRef();
+  const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
     workerRef.current = new Worker('/workers/workerPayment.js');
@@ -29,29 +31,32 @@ const PaymentList = () => {
   }, []);
 
   useEffect(() => {
-    const fetchPayments = async () => {
+    const fetchUserPayments = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/payments');
-        setPayments(response.data);
-        setOriginalPayments(response.data); 
+        const response = await axios.get('http://localhost:5000/payments/me', {
+          withCredentials: true
+        });
+        setOriginalPayments(response.data);
         setLoading(false);
-        
-        // Hitung total awal
+
         workerRef.current.postMessage({
           payments: response.data,
           action: 'RESET'
         });
+
       } catch (err) {
-        setError(err.response?.data?.message || err.message);
+        const errorMessage = err.response?.data?.msg || err.response?.data?.message || err.message;
+        setError(errorMessage);
         setLoading(false);
-        toast.error(err.response?.data?.message || 'Failed to fetch payments');
+        toast.error(errorMessage || 'Failed to fetch payments');
       }
     };
 
-    fetchPayments();
-  }, []);
+    if (user) {
+      fetchUserPayments();
+    }
+  }, [user]);
 
-  // Kirim data ke worker saat filter berubah
   useEffect(() => {
     if (workerRef.current && originalPayments.length > 0) {
       if (filterDateStart || filterDateEnd) {
@@ -71,13 +76,7 @@ const PaymentList = () => {
   }, [originalPayments, filterDateStart, filterDateEnd]);
 
   const formatDate = (dateString) => {
-    const options = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    };
+    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleDateString('id-ID', options);
   };
 
@@ -91,14 +90,14 @@ const PaymentList = () => {
 
   const handleFilterPreset = (type) => {
     const now = new Date();
-    let startDate;
+    let startDate = new Date();
+
     if (type === 'week') {
-      startDate = new Date(now);
       startDate.setDate(now.getDate() - 7);
     } else if (type === 'month') {
-      startDate = new Date(now);
       startDate.setMonth(now.getMonth() - 1);
     }
+
     setFilterDateStart(startDate.toISOString().split("T")[0]);
     setFilterDateEnd(now.toISOString().split("T")[0]);
   };
@@ -108,13 +107,14 @@ const PaymentList = () => {
     setFilterDateEnd('');
   };
 
-  if (loading) return <div className="has-text-centered">Loading payments...</div>;
+  if (!user) return <div className="has-text-centered">Please login to view your payments</div>;
+  if (loading) return <div className="has-text-centered">Loading your payments...</div>;
   if (error) return <div className="has-text-centered has-text-danger">Error: {error}</div>;
 
   return (
     <div className="container">
-      <h1 className='title has-text-black'>Payments</h1>
-      <h2 className='subtitle has-text-black'>List of Payments</h2>
+      <h1 className='title has-text-black'>My Payments</h1>
+      <h2 className='subtitle has-text-black'>List of Your Payment History</h2>
 
       <div className="box mb-4">
         <div className="buttons">
@@ -148,11 +148,12 @@ const PaymentList = () => {
             />
           </div>
         </div>
-
-        <div className="notification is-primary mt-3">
-          <strong>Total Pendapatan Kotor:</strong> {formatCurrency(totalFiltered)} <br />
-          <strong>Jumlah Transaksi:</strong> {jumlahTransaksi}
-        </div>
+        {payments.length > 0 && (
+          <div className="notification is-info mb-4">
+            <p><strong>Total Transactions:</strong> {jumlahTransaksi}</p>
+            <p><strong>Total Spent:</strong> {formatCurrency(totalFiltered)}</p>
+          </div>
+        )}
       </div>
 
       <div className="table-container">
@@ -160,7 +161,6 @@ const PaymentList = () => {
           <thead>
             <tr>
               <th>No</th>
-              <th>Customer Name</th>
               <th>Product</th>
               <th>Quantity</th>
               <th>Unit Price</th>
@@ -173,7 +173,6 @@ const PaymentList = () => {
               payments.map((payment, index) => (
                 <tr key={payment.uuid}>
                   <td>{index + 1}</td>
-                  <td>{payment.nama_pembeli}</td>
                   <td>{payment.nama_produk}</td>
                   <td>{payment.jumlah}</td>
                   <td>{formatCurrency(payment.product?.price || 0)}</td>
@@ -183,7 +182,7 @@ const PaymentList = () => {
               ))
             ) : (
               <tr>
-                <td colSpan="8" className="has-text-centered">No payment data available</td>
+                <td colSpan="6" className="has-text-centered">No payment history found</td>
               </tr>
             )}
           </tbody>
@@ -193,4 +192,4 @@ const PaymentList = () => {
   );
 };
 
-export default PaymentList;
+export default PaymentListUser;

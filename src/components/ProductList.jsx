@@ -14,7 +14,6 @@ const ProductList = () => {
   const workerRef = useRef(null);
 
   useEffect(() => {
-    // Initialize the web worker
     workerRef.current = new Worker('/workers/workerProduct.js');
     
     workerRef.current.onmessage = (event) => {
@@ -25,12 +24,10 @@ const ProductList = () => {
     };
 
     getProducts();
-
-    // Cleanup the worker when component unmounts
-    return () => {
-      workerRef.current.terminate();
-    };
-  }, []);
+      return () => {
+        workerRef.current.terminate();
+      };
+    }, []);
 
   // useEffect(() => {
   //   if (products.length > 0) {
@@ -84,7 +81,6 @@ const ProductList = () => {
 
   const handleMinPriceChange = (e) => {
     const value = e.target.value;
-    // Hanya mengizinkan angka atau string kosong
     if (value === '' || /^[0-9\b]+$/.test(value)) {
       setMinPrice(value);
     }
@@ -92,7 +88,6 @@ const ProductList = () => {
 
   const handleMaxPriceChange = (e) => {
     const value = e.target.value;
-    // Hanya mengizinkan angka atau string kosong
     if (value === '' || /^[0-9\b]+$/.test(value)) {
       setMaxPrice(value);
     }
@@ -102,8 +97,7 @@ const ProductList = () => {
     <div>
       <h1 className='title has-text-black'>Products</h1>
       <h2 className='subtitle has-text-black'>List of Products</h2>
-      
-      {/* Filter and Search Controls */}
+
       <div className="box mb-4">
         <div className="field is-horizontal">
           <div className="field-body">

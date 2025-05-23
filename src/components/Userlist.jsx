@@ -9,7 +9,6 @@ const Userlist = () => {
     const workerRef = useRef(null);
 
     useEffect(() => {
-        // Inisialisasi worker
         workerRef.current = new Worker('/workers/workerUser.js');
         
         workerRef.current.onmessage = (e) => {
@@ -17,8 +16,6 @@ const Userlist = () => {
         };
 
         getUsers();
-
-        // Cleanup worker saat komponen unmount
         return () => {
             workerRef.current.terminate();
         };
@@ -29,7 +26,7 @@ const Userlist = () => {
         try {
             const response = await axios.get("http://localhost:5000/users");
             setUsers(response.data);
-            setOriginalUsers(response.data); // Simpan data original
+            setOriginalUsers(response.data); 
         } catch (error) {
             console.error("Error fetching users:", error);
         } finally {

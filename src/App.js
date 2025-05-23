@@ -5,6 +5,7 @@ import Users from "./pages/Users";
 import ProductLists from "./pages/ProductLists";
 import ProductDisplays from "./pages/ProductDisplays";
 import PaymentLists from "./pages/PaymentLists";
+import PaymentListUsers from "./pages/PaymentListUsers";
 import AddUser from "./pages/AddUser";
 import EditUser from "./pages/EditUser";
 import AddProduct from "./pages/AddProduct";
@@ -26,6 +27,7 @@ function App() {
           <Route path="/products/add" element={<AddProduct />}/>
           <Route path="/products/edit/:id" element={<EditProduct />}/>
           <Route path="/paymentlists" element={<PaymentLists />}/>
+          <Route path="/paymentlistusers" element={<PaymentListUsers />}/>
           <Route path="/logactivitys" element={<LogActivityLists />}/>
         </Routes>
       </BrowserRouter>

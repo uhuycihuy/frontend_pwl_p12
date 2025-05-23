@@ -6,7 +6,7 @@ import '../css/Pagination.css';
 const LogActivityList = () => {
   const [logs, setLogs] = useState([]);
   const [page, setPage] = useState(0);
-  const limit = 20; // Tidak perlu pakai useState
+  const limit = 20; 
   const [pages, setPages] = useState(0);
   const [rows, setRows] = useState(0);
   const [msg, setMsg] = useState("");
